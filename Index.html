@@ -1,0 +1,585 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#07111f">
+  <meta name="description" content="RACE BEYOND SIGHT — an accessible racing game exploring voice controls and audio feedback.">
+  <title>RACE BEYOND SIGHT</title>
+
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #07111f;
+      --panel: #101e30;
+      --cyan: #5ef5e5;
+      --text: #f5f8ff;
+      --muted: #b9c7da;
+      --danger: #ff657a;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(circle at top, #183b55, var(--bg) 60%);
+      color: var(--text);
+      font-family: system-ui, Arial, sans-serif;
+    }
+
+    button { font: inherit; }
+
+    button:focus-visible {
+      outline: 3px solid white;
+      outline-offset: 4px;
+    }
+
+    .app {
+      width: min(100% - 24px, 720px);
+      margin: auto;
+      padding: 24px 0 36px;
+    }
+
+    header { text-align: center; margin-bottom: 22px; }
+
+    .eyebrow {
+      color: var(--cyan);
+      font-size: .78rem;
+      font-weight: 800;
+      letter-spacing: .22em;
+    }
+
+    h1 {
+      margin: 8px 0;
+      font-size: clamp(2rem, 8vw, 3.6rem);
+      line-height: 1;
+      letter-spacing: -.05em;
+    }
+
+    .subtitle { color: var(--muted); line-height: 1.6; }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin: 20px 0;
+    }
+
+    .stat, .panel {
+      background: var(--panel);
+      border: 1px solid #30465d;
+      border-radius: 16px;
+      padding: 15px;
+    }
+
+    .stat span {
+      display: block;
+      color: var(--muted);
+      font-size: .8rem;
+    }
+
+    .stat strong { font-size: 1.55rem; }
+
+    .track-wrap {
+      padding: 12px;
+      background: #020711;
+      border: 2px solid #426078;
+      border-radius: 20px;
+    }
+
+    #track {
+      position: relative;
+      width: 100%;
+      height: 350px;
+      overflow: hidden;
+      border-radius: 12px;
+      background: #172b3a;
+      isolation: isolate;
+    }
+
+    #track::before, #track::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 5px;
+      background: var(--cyan);
+      opacity: .8;
+    }
+
+    #track::before { left: 8%; }
+    #track::after { right: 8%; }
+
+    .lane-mark {
+      position: absolute;
+      top: -60px;
+      bottom: -60px;
+      left: 50%;
+      width: 5px;
+      transform: translateX(-50%);
+      background: repeating-linear-gradient(
+        to bottom, white 0 30px, transparent 30px 60px
+      );
+      opacity: .6;
+      animation: road 0.8s linear infinite;
+    }
+
+    @keyframes road {
+      to { background-position-y: 60px; }
+    }
+
+    .car {
+      position: absolute;
+      z-index: 2;
+      width: 48px;
+      height: 66px;
+      border-radius: 13px 13px 9px 9px;
+      display: grid;
+      place-items: center;
+      font-size: 1.7rem;
+      background: #087f8c;
+      border: 2px solid white;
+      box-shadow: 0 0 22px #5ef5e577;
+    }
+
+    #player {
+      bottom: 24px;
+      left: calc(50% - 24px);
+      transition: left .13s ease;
+    }
+
+    .obstacle {
+      background: #a51f3d;
+      border-color: #ffb5c0;
+      box-shadow: 0 0 18px #ff657a77;
+    }
+
+    #overlay {
+      position: absolute;
+      z-index: 5;
+      inset: 0;
+      display: grid;
+      place-content: center;
+      text-align: center;
+      padding: 24px;
+      background: #06101dee;
+    }
+
+    #overlay h2 { font-size: 1.8rem; margin: 0 0 10px; }
+    #overlay p { color: var(--muted); line-height: 1.6; }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .btn {
+      border: 1px solid #526b84;
+      border-radius: 13px;
+      padding: 14px 8px;
+      color: var(--text);
+      background: #1b3045;
+      cursor: pointer;
+      font-weight: 750;
+    }
+
+    .btn:active { transform: scale(.97); }
+    .primary { color: #04151a; background: var(--cyan); border-color: var(--cyan); }
+    .danger { background: #511e31; border-color: var(--danger); }
+
+    .wide { grid-column: 1 / -1; }
+
+    .panel { margin-top: 16px; }
+    .panel h2 { margin-top: 0; font-size: 1.15rem; }
+    .panel p, .panel li { color: var(--muted); line-height: 1.7; }
+
+    #status {
+      min-height: 1.5em;
+      color: var(--cyan);
+      font-weight: 700;
+    }
+
+    .commands {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .commands span {
+      border: 1px solid #425b74;
+      border-radius: 8px;
+      padding: 7px 10px;
+      color: white;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: .01ms !important;
+        transition-duration: .01ms !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+<main class="app">
+  <header>
+    <div class="eyebrow">ACCESSIBLE GAMING PROJECT</div>
+    <h1>RACE BEYOND SIGHT</h1>
+    <p class="subtitle">
+      Hear the road. Feel the race. Play your way.
+    </p>
+  </header>
+
+  <section class="stats" aria-label="Race statistics">
+    <div class="stat"><span> SCORE </span><strong id="score">0</strong></div>
+    <div class="stat"><span> LEVEL </span><strong id="level">1</strong></div>
+    <div class="stat"><span> SPEED </span><strong id="speed">1</strong></div>
+  </section>
+
+  <section class="track-wrap" aria-label="Racing track">
+    <div id="track">
+      <div class="lane-mark" aria-hidden="true"></div>
+      <div id="player" class="car" role="img" aria-label="Your racing car">🏎️</div>
+
+      <div id="overlay">
+        <h2 id="overlayTitle">Ready to Race?</h2>
+        <p id="overlayText">
+          Avoid obstacles, listen for warnings, and use the controls below.
+        </p>
+        <button class="btn primary" id="startBtn">START RACE</button>
+      </div>
+    </div>
+  </section>
+
+  <p id="status" role="status" aria-live="polite">
+    Game ready. Press Start Race.
+  </p>
+
+  <section class="controls" aria-label="Game controls">
+    <button class="btn" id="leftBtn">⬅ LEFT</button>
+    <button class="btn" id="boostBtn">⚡ BOOST</button>
+    <button class="btn" id="rightBtn">RIGHT ➡</button>
+    <button class="btn" id="brakeBtn">🛑 BRAKE</button>
+    <button class="btn" id="pauseBtn">⏸ PAUSE</button>
+    <button class="btn danger" id="stopBtn">■ STOP</button>
+    <button class="btn wide" id="voiceBtn">🎤 ENABLE VOICE COMMANDS</button>
+    <button class="btn wide" id="soundBtn">🔊 ENABLE AUDIO</button>
+  </section>
+
+  <section class="panel">
+    <h2>Voice Commands</h2>
+    <div class="commands">
+      <span>LEFT</span><span>RIGHT</span><span>BOOST</span>
+      <span>BRAKE</span><span>PAUSE</span><span>RESUME</span>
+    </div>
+    <p>Voice recognition requires browser support and microphone permission.</p>
+  </section>
+
+  <section class="panel">
+    <h2>About Accessibility</h2>
+    <p>
+      This prototype explores spoken feedback, voice control, clear contrast,
+      and simple buttons. It is not yet certified as fully accessible.
+      Please test with screen readers and blind or visually impaired players
+      before public release.
+    </p>
+  </section>
+</main>
+
+<script>
+(() => {
+  "use strict";
+
+  const $ = id => document.getElementById(id);
+  const track = $("track");
+  const player = $("player");
+  const overlay = $("overlay");
+
+  let running = false;
+  let paused = false;
+  let score = 0;
+  let level = 1;
+  let speed = 1;
+  let lane = 1;
+  let obstacle = null;
+  let obstacleY = -80;
+  let lastTime = 0;
+  let spawnTimer = 0;
+  let animation = 0;
+  let audioEnabled = false;
+  let recognition = null;
+  let boostUntil = 0;
+  let lastWarning = 0;
+
+  const lanePositions = [25, 50, 75];
+
+  function announce(message) {
+    $("status").textContent = message;
+    speak(message);
+  }
+
+  function speak(message) {
+    if (!audioEnabled || !("speechSynthesis" in window)) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(message);
+    utterance.rate = 1.05;
+    window.speechSynthesis.speak(utterance);
+  }
+
+  function setPlayerLane() {
+    player.style.left = `calc(${lanePositions[lane]}% - 24px)`;
+  }
+
+  function updateStats() {
+    $("score").textContent = score;
+    $("level").textContent = level;
+    $("speed").textContent = speed;
+  }
+
+  function move(direction) {
+    if (!running || paused) return;
+    lane = Math.max(0, Math.min(2, lane + direction));
+    setPlayerLane();
+  }
+
+  function spawnObstacle() {
+    if (obstacle) return;
+
+    obstacle = document.createElement("div");
+    obstacle.className = "car obstacle";
+    obstacle.textContent = "🚧";
+    obstacle.setAttribute("aria-label", "Obstacle");
+    obstacle.style.top = "-70px";
+    obstacle.style.left = `calc(${lanePositions[Math.floor(Math.random() * 3)]}% - 24px)`;
+    track.appendChild(obstacle);
+
+    obstacleY = -70;
+  }
+
+  function gameOver() {
+    running = false;
+    paused = false;
+    cancelAnimationFrame(animation);
+    if (obstacle) obstacle.remove();
+    obstacle = null;
+
+    $("overlayTitle").textContent = "Race Finished";
+    $("overlayText").textContent = `Your score is ${score}. Ready to try again?`;
+    $("startBtn").textContent = "RACE AGAIN";
+    overlay.hidden = false;
+    announce(`Race finished. Your score is ${score}.`);
+  }
+
+  function frame(time) {
+    if (!running || paused) return;
+
+    const dt = Math.min((time - (lastTime || time)) / 16.67, 3);
+    lastTime = time;
+    spawnTimer += dt;
+
+    if (performance.now() > boostUntil) {
+      speed = Math.min(1 + Math.floor(score / 100), 8);
+    }
+
+    if (!obstacle && spawnTimer > Math.max(35, 90 - level * 5)) {
+      spawnObstacle();
+      spawnTimer = 0;
+    }
+
+    if (obstacle) {
+      obstacleY += (2.8 + speed * .65) * dt;
+      obstacle.style.top = obstacleY + "px";
+
+      const playerY = track.clientHeight - 90;
+      const sameLane = obstacle.style.left ===
+        `calc(${lanePositions[lane]}% - 24px)`;
+
+      if (sameLane && obstacleY > playerY - 38 && obstacleY < playerY + 38) {
+        gameOver();
+        return;
+      }
+
+      if (obstacleY > track.clientHeight) {
+        obstacle.remove();
+        obstacle = null;
+        score += 10;
+        level = 1 + Math.floor(score / 100);
+        updateStats();
+      } else if (sameLane && obstacleY > playerY - 150 &&
+                 performance.now() - lastWarning > 2500) {
+        lastWarning = performance.now();
+        speak("Warning. Obstacle ahead.");
+      }
+    }
+
+    animation = requestAnimationFrame(frame);
+  }
+
+  function startGame() {
+    if (running) return;
+    score = 0;
+    level = 1;
+    speed = 1;
+    lane = 1;
+    spawnTimer = 0;
+    lastTime = 0;
+    boostUntil = 0;
+    if (obstacle) obstacle.remove();
+    obstacle = null;
+    setPlayerLane();
+    updateStats();
+    running = true;
+    paused = false;
+    overlay.hidden = true;
+    announce("Race started. Listen for obstacle warnings.");
+    animation = requestAnimationFrame(frame);
+  }
+
+  function pauseGame() {
+    if (!running) return;
+    paused = !paused;
+
+    if (paused) {
+      cancelAnimationFrame(animation);
+      $("pauseBtn").textContent = "▶ RESUME";
+      announce("Race paused.");
+    } else {
+      lastTime = 0;
+      $("pauseBtn").textContent = "⏸ PAUSE";
+      announce("Race resumed.");
+      animation = requestAnimationFrame(frame);
+    }
+  }
+
+  function stopGame() {
+    running = false;
+    paused = false;
+    cancelAnimationFrame(animation);
+    if (obstacle) obstacle.remove();
+    obstacle = null;
+    overlay.hidden = false;
+    $("overlayTitle").textContent = "Race Stopped";
+    $("overlayText").textContent = "Start a new race whenever you're ready.";
+    $("startBtn").textContent = "START RACE";
+    announce("Race stopped.");
+  }
+
+  $("startBtn").addEventListener("click", startGame);
+  $("leftBtn").addEventListener("click", () => move(-1));
+  $("rightBtn").addEventListener("click", () => move(1));
+
+  $("boostBtn").addEventListener("click", () => {
+    if (!running || paused) return;
+    boostUntil = performance.now() + 2500;
+    speed = Math.min(speed + 2, 10);
+    announce("Boost activated.");
+  });
+
+  $("brakeBtn").addEventListener("click", () => {
+    if (!running || paused) return;
+    speed = 1;
+    boostUntil = 0;
+    announce("Brake activated.");
+  });
+
+  $("pauseBtn").addEventListener("click", pauseGame);
+  $("stopBtn").addEventListener("click", stopGame);
+
+  $("soundBtn").addEventListener("click", () => {
+    audioEnabled = !audioEnabled;
+    $("soundBtn").textContent = audioEnabled
+      ? "🔇 DISABLE AUDIO" : "🔊 ENABLE AUDIO";
+    if (audioEnabled) speak("Audio feedback enabled.");
+  });
+
+  function handleCommand(command) {
+    command = command.toLowerCase();
+
+    if (command.includes("left")) move(-1);
+    else if (command.includes("right")) move(1);
+    else if (command.includes("boost")) $("boostBtn").click();
+    else if (command.includes("brake")) $("brakeBtn").click();
+    else if (command.includes("pause")) {
+      if (running && !paused) pauseGame();
+    } else if (command.includes("resume")) {
+      if (running && paused) pauseGame();
+      else if (!running) startGame();
+    }
+  }
+
+  $("voiceBtn").addEventListener("click", () => {
+    const SpeechRecognition =
+      window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      announce("Voice recognition is not supported in this browser. Use the buttons.");
+      return;
+    }
+
+    if (recognition) {
+      recognition.stop();
+      recognition = null;
+      $("voiceBtn").textContent = "🎤 ENABLE VOICE COMMANDS";
+      announce("Voice commands disabled.");
+      return;
+    }
+
+    recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    recognition.lang = "en-US";
+
+    recognition.onresult = event => {
+      const result = event.results[event.results.length - 1][0].transcript;
+      handleCommand(result);
+    };
+
+    recognition.onerror = () => {
+      $("status").textContent =
+        "Voice recognition issue. Check microphone permission or use buttons.";
+    };
+
+    recognition.onend = () => {
+      if (recognition) {
+        try { recognition.start(); } catch (_) {}
+      }
+    };
+
+    try {
+      recognition.start();
+      $("voiceBtn").textContent = "🎤 DISABLE VOICE COMMANDS";
+      announce("Voice commands enabled.");
+    } catch (_) {
+      recognition = null;
+      announce("Could not start voice recognition. Check microphone permission.");
+    }
+  });
+
+  document.addEventListener("keydown", event => {
+    if (event.repeat) return;
+
+    if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      move(-1);
+    } else if (event.key === "ArrowRight") {
+      event.preventDefault();
+      move(1);
+    } else if (event.key.toLowerCase() === "p") {
+      pauseGame();
+    } else if (event.key === " ") {
+      if (!running) startGame();
+      else $("boostBtn").click();
+    }
+  });
+
+  setPlayerLane();
+  updateStats();
+})();
+</script>
+</body>
+</html>
